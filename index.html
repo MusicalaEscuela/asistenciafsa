@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Registro de Asistencia - Musicala</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root {
+      --primary: #007BFF;
+      --gray: #f9f9f9;
+      --border: #ddd;
+      --font: 'Roboto', sans-serif;
+      --success: #28a745;
+    }
+
+    body {
+      font-family: var(--font);
+      background-color: var(--gray);
+      margin: 0;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 950px;
+      margin: auto;
+      background-color: #fff;
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .field {
+      margin-bottom: 15px;
+    }
+
+    label {
+      font-weight: bold;
+    }
+
+    select, input[type="date"] {
+      width: 100%;
+      padding: 10px;
+      font-size: 15px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+
+    th, td {
+      padding: 10px;
+      border-bottom: 1px solid var(--border);
+      text-align: center;
+      font-size: 15px;
+    }
+
+    th {
+      background-color: var(--gray);
+    }
+
+    .btn {
+      padding: 10px 15px;
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 15px;
+      margin-top: 20px;
+    }
+
+    .success {
+      background-color: #d4edda;
+      color: #155724;
+      padding: 10px;
+      margin-top: 10px;
+      border-radius: 6px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <img src="logo.jpg" alt="Logo Musicala" style="max-width: 180px; display: block; margin: 0 auto 20px;" />
+    <h1>Registro de Asistencia - Musicala</h1>
+
+    <form id="formAsistencia">
+      <input type="hidden" name="formulario" value="asistencia">
+      <input type="hidden" id="cantidad" name="cantidad">
+
+      <div class="field">
+        <label for="fecha">Fecha:</label>
+        <input type="date" id="fecha" name="fecha" required>
+      </div>
+
+      <div class="field">
+        <label for="docente">Docente:</label>
+        <select id="docente" name="docente" required>
+          <option value="">-- Selecciona un docente --</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="grupo">Grupo:</label>
+        <select id="grupo" name="grupo" required onchange="cargarEstudiantes()">
+          <option value="">-- Selecciona un grupo --</option>
+        </select>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Centro</th>
+            <th>Ciclo</th>
+            <th>¿Asistió?</th>
+          </tr>
+        </thead>
+        <tbody id="tabla-estudiantes">
+          <!-- Rellenado dinámicamente -->
+        </tbody>
+      </table>
+
+      <button class="btn" type="submit">Guardar asistencia</button>
+      <div class="success" id="mensaje">✅ Registro exitoso</div>
+    </form>
+  </div>
+
+  <script>
+    const scriptURL = "https://script.google.com/macros/s/AKfycbwDvCJ6Mf9xlxF8e1h96aTLcMHALYiLe1HWVuWYYtrd5X2HqiUqp-zZZz4RvsjpDnX6/exec";
+    const tabla = document.getElementById("tabla-estudiantes");
+    const form = document.getElementById("formAsistencia");
+    const mensaje = document.getElementById("mensaje");
+    const cantidadInput = document.getElementById("cantidad");
+
+    let estudiantes = [];
+
+    function cargarDocentes() {
+      fetch(`${scriptURL}?consulta=docentes`)
+        .then(res => res.json())
+        .then(data => {
+          const select = document.getElementById("docente");
+          data.forEach(docente => {
+            const opt = document.createElement("option");
+            opt.value = docente;
+            opt.textContent = docente;
+            select.appendChild(opt);
+          });
+        });
+    }
+
+    function cargarGrupos() {
+      fetch(`${scriptURL}?consulta=grupos`)
+        .then(res => res.json())
+        .then(data => {
+          const select = document.getElementById("grupo");
+          data.forEach(grupo => {
+            const opt = document.createElement("option");
+            opt.value = grupo;
+            opt.textContent = grupo;
+            select.appendChild(opt);
+          });
+        });
+    }
+
+    function cargarEstudiantes() {
+      const grupo = document.getElementById("grupo").value;
+      if (!grupo) return;
+
+      fetch(`${scriptURL}?consulta=estudiantes&grupo=${encodeURIComponent(grupo)}`)
+        .then(res => res.json())
+        .then(data => {
+          estudiantes = data;
+          tabla.innerHTML = "";
+          data.forEach((est, i) => {
+            const fila = document.createElement("tr");
+            fila.innerHTML = `
+              <td>${est.nombre}<input type="hidden" name="nombre-${i}" value="${est.nombre}"></td>
+              <td>${est.centro}<input type="hidden" name="centro-${i}" value="${est.centro}"></td>
+              <td>${est.ciclo}<input type="hidden" name="ciclo-${i}" value="${est.ciclo}"></td>
+              <td><input type="checkbox" name="asistencia-${i}" value="Sí"></td>
+            `;
+            tabla.appendChild(fila);
+          });
+          cantidadInput.value = estudiantes.length;
+        });
+    }
+
+    form.addEventListener("submit", e => {
+      e.preventDefault();
+
+      const boton = form.querySelector(".btn");
+      boton.disabled = true;
+      boton.textContent = "⏳ Registrando asistencia...";
+
+      const formData = new FormData(form);
+
+      fetch(scriptURL, {
+        method: "POST",
+        body: formData
+      })
+      .then(res => res.text())
+      .then(texto => {
+        console.log("✅", texto);
+        mensaje.style.display = "block";
+        mensaje.textContent = "✅ Asistencia registrada correctamente";
+
+        form.reset();
+        tabla.innerHTML = "";
+        estudiantes = [];
+
+        setTimeout(() => {
+          mensaje.style.display = "none";
+          boton.disabled = false;
+          boton.textContent = "Guardar asistencia";
+        }, 3000);
+      })
+      .catch(err => {
+        console.error("❌ Error:", err);
+        mensaje.style.display = "block";
+        mensaje.textContent = "❌ No se pudo guardar la asistencia";
+
+        setTimeout(() => {
+          mensaje.style.display = "none";
+          boton.disabled = false;
+          boton.textContent = "Guardar asistencia";
+        }, 3000);
+      });
+    });
+
+    window.addEventListener("DOMContentLoaded", () => {
+      const hoy = new Date();
+      document.getElementById("fecha").value = hoy.toISOString().split("T")[0];
+    });
+
+    cargarDocentes();
+    cargarGrupos();
+  </script>
+</body>
+</html>
